@@ -50,7 +50,6 @@ The algorithm consisted of two main components. First, it iterated over the bins
 
 However, re-binning suffered from random cache misses because particles in a bin were not stored sequentially, and their new grid index was random. With a high number of particles, the data structures for particle bins and the grid might not fit into the cache. This could lead to cache inefficiency and performance degradation.
 
-### Performance Results
 
 ### OpenMP Algorithm
 In the parallel code, we retained the same algorithm as in the serial code, but introduced parallelism using OpenMP. We divided the parallel process into two steps:
