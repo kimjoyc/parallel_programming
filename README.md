@@ -211,12 +211,8 @@ As we can see in the graph, the insertion time and the assembly time are closely
 
 When we move from 60 ntasks per node to 64 ntasks, the performance increases with less insertion and assembly time overall, with an exception at 2 nodes. We suspect this is due to communication between the nodes are slowed down when using a fixed ntasks of 64.
 
-## **Run intra-node experiments using 1 node and varying the number of ranks per node**
+### **Run intra-node experiments using 1 node and varying the number of ranks per node**
 
-
-
-## I**ntra-node scaling on 1 node** and [1-64] tasks per node
-
-
+### I**ntra-node scaling on 1 node** and [1-64] tasks per node
 
 As ntasks per node increases on a single node, the insertion or assembly time decreases, with the exception at Ntasks=32 and assembly time is more than that of Ntasks=16. We think it’s because of the increased communication overhead of the Ntasks=32.
