@@ -172,16 +172,6 @@ With the data distributed, we are able to compute data in a parallel fashion. Th
 6. Identify the starting k-mers
 7. Assemble the contigs by following the forward extensions of the starting k-mers through the hash table
 
-## A discussion of how using UPC++ implemented your design choices.
-
-UPC++ has greatly simplified and structured the coding of this homework by abstracting parallel programming complexities and providing a powerful framework for efficient and scalable parallel code development. By taking advantage of UPC++ features such as global pointers, one-sided communication, and synchronization barriers, the homework implementation has been designed to fully utilize the power of UPC++ for distributed computing.  The use of UPC++ to implement the k-mer hash table provides several benefits over other parallel programming models, such as MPI or OpenMP. First, UPC++ provides a more expressive programming model than MPI or OpenMP, making it easier to write and maintain parallel code. Second, UPC++ provides a number of performance optimizations that are tailored to distributed memory systems, such as non-blocking remote memory access and efficient one-sided communication primitives. Finally, UPC++ provides a higher level of abstraction than MPI or OpenMP, which can simplify the programming of complex parallel algorithms.
-
-## How might you have implemented this if you were using MPI? If you were using OpenMP?
-
-The MPI implementation would require a similar UPC++  implementation that utilizes MPI-3 one-sided communication. However, UPC++ provides a more expressive programming model that enables more efficient communication patterns, especially for irregular and dynamic communication patterns. Thus, the MPI implementation would require more explicit communication code to be written and the code may be less efficient. Specifically, the k-mers would need to be distributed across the MPI processes, with each process responsible for a portion of the k-mers. Then the communication would need to be utilized to ensure that each process had all of the k-mers that it needed to insert into the hash table. Lastly, synchronization would be employed to ensure that multiple processes did not attempt to insert the same k-mer into the hash table simultaneously.
-
-Alternatively, OpenMP implementation would involve parallelizing loop-level parallelism and require a shared memory parallelism approach that would be incompatible with distributed memory parallelism. Consequently, the k-mers would be loaded into memory on a single node, and the hash table would be shared among the threads on that node. The synchronization step would need to ensure that multiple threads did not attempt to insert the same k-mer into the hash table simultaneously. Thus, this implementation would need to be heavily modified to distribute the workload across multiple nodes, using a combination of OpenMP and MPI or another parallel programming model.
-
 ## Any optimizations you tried and how they impacted performance.
 
 Here are some optimizations we tried performance:
