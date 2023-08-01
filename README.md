@@ -152,3 +152,71 @@ The "Naive Cuda" method appears to have better performance than the serial imple
 ### Conclusion
 In conclusion, the performance analysis shows that the "Cuda" parallelization method utilizing the GPU offers the best scalability and computational efficiency for large-scale particle simulations. It outperforms other parallelization methods, including OpenMP and MPI, which rely on CPU-based parallel processing and communication/synchronization. However, the parallelization method chosen depends on the available hardware and the specific requirements of the simulation. For GPU-accelerated systems, the "Cuda" approach is highly recommended, while for CPU-based clusters, OpenMP or MPI can still provide reasonable scalability and performance. The "Naive Cuda" approach, while faster than the serial methods, does not fully exploit the potential of the GPU and should be further optimized for improved performance.
 
+
+## HW3: Parallelizing Genome Assembly UPC++
+
+
+### Distributed Memory of Hash MapsAlgorithm
+
+We achieved the distributed memory of hash maps by using `upcxx::global_ptr` , pointing to distributed data. We store `upcxx::global_ptr<kmer_pair>` as an array to store K-mers and an array of`upcxx::global_ptr<int>` to store the used slots. It also initializes global pointers to local portions, making them accessible across all processes. The implementation of the hash map uses one-sided communication, which allows processes to read and write data in the hash table without explicit synchronization. This is achieved through the `upcxx::rput`, `upcxx::rget`, and `upcxx::atomic_domain` functions. The HashMap structure allows efficient insertion and retrieval of k-mer pairs in a distributed manner across multiple processes.
+
+### Parallel Computation
+
+With the data distributed, we are able to compute data in a parallel fashion. The steps are as follows:
+
+1. Initialize the UPC++ runtime and process input arguments.
+2. Check the k-mer size to ensure compatibility with the compiled binary.
+3. Calculate the hash table size based on the number of k-mers
+4. Initialize the HashMap data structure and read the k-mers from the input file, partitioning the data among the available ranks.
+5. Insert the k-mers into the hash table.
+6. Identify the starting k-mers
+7. Assemble the contigs by following the forward extensions of the starting k-mers through the hash table
+
+## A discussion of how using UPC++ implemented your design choices.
+
+UPC++ has greatly simplified and structured the coding of this homework by abstracting parallel programming complexities and providing a powerful framework for efficient and scalable parallel code development. By taking advantage of UPC++ features such as global pointers, one-sided communication, and synchronization barriers, the homework implementation has been designed to fully utilize the power of UPC++ for distributed computing.  The use of UPC++ to implement the k-mer hash table provides several benefits over other parallel programming models, such as MPI or OpenMP. First, UPC++ provides a more expressive programming model than MPI or OpenMP, making it easier to write and maintain parallel code. Second, UPC++ provides a number of performance optimizations that are tailored to distributed memory systems, such as non-blocking remote memory access and efficient one-sided communication primitives. Finally, UPC++ provides a higher level of abstraction than MPI or OpenMP, which can simplify the programming of complex parallel algorithms.
+
+## How might you have implemented this if you were using MPI? If you were using OpenMP?
+
+The MPI implementation would require a similar UPC++  implementation that utilizes MPI-3 one-sided communication. However, UPC++ provides a more expressive programming model that enables more efficient communication patterns, especially for irregular and dynamic communication patterns. Thus, the MPI implementation would require more explicit communication code to be written and the code may be less efficient. Specifically, the k-mers would need to be distributed across the MPI processes, with each process responsible for a portion of the k-mers. Then the communication would need to be utilized to ensure that each process had all of the k-mers that it needed to insert into the hash table. Lastly, synchronization would be employed to ensure that multiple processes did not attempt to insert the same k-mer into the hash table simultaneously.
+
+Alternatively, OpenMP implementation would involve parallelizing loop-level parallelism and require a shared memory parallelism approach that would be incompatible with distributed memory parallelism. Consequently, the k-mers would be loaded into memory on a single node, and the hash table would be shared among the threads on that node. The synchronization step would need to ensure that multiple threads did not attempt to insert the same k-mer into the hash table simultaneously. Thus, this implementation would need to be heavily modified to distribute the workload across multiple nodes, using a combination of OpenMP and MPI or another parallel programming model.
+
+## Any optimizations you tried and how they impacted performance.
+
+Here are some optimizations we tried performance:
+
+1. Change the hash function - If the hash function used is not well-suited for the data being stored, it can result in an uneven distribution of keys across the hash table, causing a higher rate of collisions. Changing the hash function could lead to better distribution and fewer collisions.
+2. Reduce network communication - Since this is a distributed hash table, communication overhead between the nodes can be a bottleneck. One way to reduce communication is to increase the size of each node's hash table. This would decrease the number of requests to other nodes for data. However, this approach would increase the memory requirements of each node.
+
+
+### Graphs and discussion of the **scaling experiments**
+
+**Inter-node using 64 tasks per node** 
+
+There could be several reasons why adding more nodes leads to an increase in the total runtime of a parallel program. Here are a few possible explanations:
+
+1. Communication overhead: In a distributed memory parallel program, nodes must communicate with each other in order to exchange data and synchronize their operations. As the number of nodes increases, the amount of communication needed to coordinate their activities also increases. This can lead to increased communication overhead, which slows down the overall program performance.
+2. Load balancing: In a parallel program, it's important to ensure that the workload is evenly distributed across all the available nodes. If some nodes are idle while others are overloaded, the overall performance of the program can suffer. As the number of nodes increases, load balancing becomes more difficult, and it's possible that some nodes may become underutilized, which can slow down the overall performance.
+
+**Intra-node varying number of tasks per node**
+
+Increasing the number of tasks per node while keeping the number of nodes fixed can lead to a decrease in the overall time taken because it allows for better utilization of the available resources. When there are more tasks per node, each node can handle a larger workload, which reduces the amount of time that each task has to wait for available resources. This can result in better load balancing and reduced overhead due to communication between nodes. Additionally, it can reduce the amount of data transfer between nodes, which can be a bottleneck in distributed systems. As a result, increasing the number of tasks per node can lead to better performance and reduced overall time taken.
+
+### **Perform multinode experiments using 1, 2, 4, and 8 nodes with 60 tasks per node**
+
+As we can see in the graph, the insertion time and the assembly time are closely correlated regardless of Node Number or Ntasks, with insertion time slightly lower than assembly time.
+
+### How the performance change when moving from **60 tasks per node** to **64 tasks per node**?
+
+When we move from 60 ntasks per node to 64 ntasks, the performance increases with less insertion and assembly time overall, with an exception at 2 nodes. We suspect this is due to communication between the nodes are slowed down when using a fixed ntasks of 64.
+
+## **Run intra-node experiments using 1 node and varying the number of ranks per node**
+
+
+
+## I**ntra-node scaling on 1 node** and [1-64] tasks per node
+
+
+
+As ntasks per node increases on a single node, the insertion or assembly time decreases, with the exception at Ntasks=32 and assembly time is more than that of Ntasks=16. We think it’s because of the increased communication overhead of the Ntasks=32.
