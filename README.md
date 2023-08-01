@@ -38,7 +38,6 @@ Compile the code using a C++ compiler that supports AVX intrinsics.
 Run the compiled executable with the desired matrix size and other parameters.
 
 
-
 ## HW2-1 Particle Simulation Parallelization Serial VS OpenMP
 ### Introduction
 We focused on parallelizing the code for particle simulation. In the first part, we optimized the serial code using packed doubly-linked lists of particles and achieved about a 463x speedup at 10000 particles compared to the naive serial code. In the second part, we introduced parallelism using OpenMP, resulting in a 1382x speedup at 10000 particles.
@@ -50,13 +49,11 @@ The algorithm consisted of two main components. First, it iterated over the bins
 
 However, re-binning suffered from random cache misses because particles in a bin were not stored sequentially, and their new grid index was random. With a high number of particles, the data structures for particle bins and the grid might not fit into the cache. This could lead to cache inefficiency and performance degradation.
 
-
 ### OpenMP Algorithm
 In the parallel code, we retained the same algorithm as in the serial code, but introduced parallelism using OpenMP. We divided the parallel process into two steps:
 
 In the first step, we distributed ranges of columns to different threads, ensuring that no range was less than three columns to avoid overlapping neighbors. This part required no synchronization or communication, as threads performed disjoint computations and data read/writes.
 In the second step, we assigned ranges of particles to threads. Since particles in different ranges could still move to or come from the same grid location, it required synchronization around re-binning. We assigned an OpenMP lock to each grid cell, allowing threads to acquire locks at the source and target grid cells while re-binning a particle.
-
 
 ### Parallel Analysis
 Considering N particles and P threads, and G grid points, we analyzed the probability of collision and mutual exclusion during synchronization:
@@ -86,6 +83,48 @@ Synchronization Strategy: Assigning OpenMP locks to grid cells for synchronizati
 
 In conclusion, the optimized serial and parallel implementations achieved significant speedups by utilizing efficient data structures, parallelizing critical steps, and optimizing memory access patterns. The overall performance improvement made the particle simulation code much more scalable and efficient, enabling faster simulations with larger particle sets.
 
+
+
+## HW2-2 Particle Simulation MPI Parallelization
+### Introduction
+In this project, we worked on parallelizing a particle simulation using MPI (Message Passing Interface). 
+The serial code uses packed doubly-linked lists of particles to facilitate re-binning of particles. The particles are organized by bins, and these lists are interleaved inside a contiguous array of particle wrapper classes. Additionally, the grid is represented as a contiguous array of pointers to the head of each bin.
+
+The algorithm consists of two main components. In the first step, the code iterates over the bins by grid index and calculates the force on each neighbor pair. This is achieved by iterating over the neighbor bins, and within each bin, iterating through the particles. The second step involves iterating over the particle wrappers by particle index, calculating their new positions, and re-binning them. Re-binning is a constant-time operation due to the doubly-linked list structure. The algorithm exhibits relatively good cache coherence for computing the new positions because the particle wrappers maintain the same order as the particle data, ensuring efficient memory access.
+
+However, re-binning can suffer from random cache misses since particles in a bin are not stored sequentially, and their new grid index is random. As the number of particles increases, the data structures for particle bins and the grid may exceed the cache size, leading to cache inefficiency and performance degradation.
+
+### Algorithm
+The parallelized code uses MPI to distribute the simulation among multiple ranks. Each rank runs a simulation strategy similar to the serial implementation. Particles are stored in a contiguous packed doubly-linked cell list data structure, and there is an array of pointers to the head of each cell. Cells are squares of size just a bit larger than the interaction cutoff.
+
+The simulation steps proceed as follows:
+
+Each rank sends the particles on its X boundaries to its X neighbor.
+The rank receives ghost particles on its X boundaries.
+The rank sends the particles on its Y boundaries to its Y neighbors, including any ghost particles from the previous step that are on the corners.
+The rank performs the apply_force loop.
+The rank performs the move loop.
+When computing new cell coordinates for the particles, any particles outside the rank's subdomain are buffered to be exchanged with the appropriate neighbor.
+Finally, the rank exchanges any particles that have moved to a different rank with its neighbors. The exchange is done first along the X axis, then along the Y axis, forwarding any corners.
+Particle Exchange
+To exchange particles, ranks use a strategy that involves storing particles in a pre-allocated buffer. Ranks call MPI_Issend in both directions to initialize a send without blocking, then probe in both directions to get the size of incoming buffers, and finally, call MPI_Recv with the size to receive the particles. Ranks then wait on the send requests to finish.
+
+The non-blocking send strategy is employed to avoid a domino pattern of communication along the entire dimension when using blocking send, especially when there are multiple ranks along that axis.
+
+### Other Attempted Methods
+Initially, the team attempted to assign 2D subdomains to ranks and have each rank perform a linear scan through the particles to create a spatially sorted list of particles it owns. This approach was expected to improve memory coalescing and cache coherence. However, it required an MPI_Allgatherv communication on the particles at the end of each step to share updated positions with all ranks, which led to memory copy overhead and poor performance.
+Another approach considered was to periodically sort particles by grid position. Although this approach could provide better cache performance, the need to write back particle data in original order during state saving, combined with the overhead of memory copying during counting sort, made it less practical.
+Performance Results
+The current MPI implementation divides the simulation box into rectangular subdomains assigned to a 2D topology of MPI ranks.
+
+The symmetric apply_force in MPI gave a significant performance boost, and the implementation reliably runs in under 10 seconds for 6 million particles with 128 num_procs.
+
+In strong scaling, keeping the problem size constant and increasing the number of processors, the performance improves significantly, as seen in the "strong scaling" plot.
+
+In weak scaling, increasing the problem size proportionally to the number of processors, the performance remains stable as the workload per processor remains constant, as shown in the "weak scaling" plot.
+
+### Conclusion
+The MPI parallelization of the particle simulation significantly improves performance, allowing for faster simulations with larger particle sets. The strategy to divide the simulation among multiple ranks and efficiently exchange particles through non-blocking sends and receives demonstrates effective use of MPI. Overall, the optimized MPI parallelization enhances the scalability and efficiency of the particle simulation code.
 
 
 
